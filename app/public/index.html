@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f6f1">
+  <title>Ballast Tasks</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <style>
+    :root {
+      --ink: #1d302c;
+      --muted: #77827d;
+      --line: #e5e9e2;
+      --paper: #ffffff;
+      --canvas: #f5f6f1;
+      --green: #246b52;
+      --green-deep: #194d3c;
+      --green-pale: #eaf3ed;
+      --coral: #cf735d;
+      --coral-pale: #fbefeb;
+      --gold: #c08a3e;
+    }
+
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; background: var(--canvas); color: var(--ink); font-family: "Aptos", "Segoe UI", sans-serif; }
+    [x-cloak] { display: none !important; }
+    .app-shell { min-height: 100vh; }
+    .topbar { height: 74px; background: rgba(255,255,255,.9); border-bottom: 1px solid var(--line); }
+    .brand-mark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; background: var(--green); color: white; font-size: 18px; }
+    .brand-name { font-size: 16px; font-weight: 750; letter-spacing: 0; }
+    .avatar { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--green-pale); color: var(--green-deep); font-size: 13px; font-weight: 750; }
+    .workspace { width: min(100% - 40px, 1040px); margin: 0 auto; padding: 54px 0 72px; }
+    .eyebrow { color: var(--green); font-size: 11px; font-weight: 750; text-transform: uppercase; }
+    .page-title { margin: 5px 0 0; font-family: Georgia, "Times New Roman", serif; font-size: 42px; font-weight: 500; letter-spacing: 0; }
+    .subtle { color: var(--muted); }
+    .primary-btn { border: 0; border-radius: 8px; background: var(--green); color: #fff; font-weight: 650; padding: 11px 16px; }
+    .primary-btn:hover, .primary-btn:focus { background: var(--green-deep); color: #fff; }
+    .filter-bar { display: flex; gap: 6px; padding: 5px; border: 1px solid var(--line); border-radius: 10px; background: #eef0e9; }
+    .filter-btn { border: 0; border-radius: 7px; background: transparent; color: #65716b; font-size: 13px; font-weight: 650; padding: 9px 15px; }
+    .filter-btn.active { background: white; color: var(--green-deep); box-shadow: 0 1px 3px rgba(30,52,43,.1); }
+    .list-panel { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+    .list-heading { min-height: 54px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 22px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; }
+    .task-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) 170px 84px; align-items: center; gap: 14px; min-height: 82px; padding: 14px 22px; border-bottom: 1px solid #edf0eb; transition: background .16s ease; }
+    .task-row:last-child { border-bottom: 0; }
+    .task-row:hover { background: #fcfdfb; }
+    .task-row.is-complete .task-name { color: #87918b; text-decoration: line-through; }
+    .task-check { appearance: none; width: 20px; height: 20px; margin: 0; border: 1.5px solid #b7c1b9; border-radius: 6px; cursor: pointer; transition: .15s ease; }
+    .task-check:checked { display: grid; place-items: center; border-color: var(--green); background: var(--green); }
+    .task-check:checked::after { content: "✓"; color: #fff; font-size: 13px; font-weight: 700; }
+    .task-name { overflow-wrap: anywhere; font-size: 15px; font-weight: 650; }
+    .task-meta { margin-top: 4px; color: var(--muted); font-size: 12px; }
+    .due-date { color: #55635c; font-size: 13px; }
+    .due-date.overdue { color: #b34e3d; }
+    .row-actions { display: flex; justify-content: flex-end; gap: 4px; }
+    .icon-btn { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 7px; background: transparent; color: #758079; }
+    .icon-btn:hover { background: var(--green-pale); color: var(--green-deep); }
+    .icon-btn.delete:hover { background: var(--coral-pale); color: #ad4d3a; }
+    .empty-state { padding: 66px 24px; text-align: center; }
+    .empty-icon { display: grid; place-items: center; width: 54px; height: 54px; margin: 0 auto 16px; border-radius: 16px; background: var(--green-pale); color: var(--green); font-size: 23px; }
+    .pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+    .pager-btn { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); }
+    .pager-btn:disabled { color: #b5bdb7; cursor: not-allowed; }
+    .overlay { position: fixed; z-index: 1050; inset: 0; display: grid; place-items: center; overflow-y: auto; padding: 18px; background: rgba(21,37,31,.48); backdrop-filter: blur(3px); }
+    .task-dialog { width: min(100%, 480px); border: 1px solid rgba(255,255,255,.5); border-radius: 12px; background: white; box-shadow: 0 24px 80px rgba(16,35,27,.22); animation: rise .18s ease-out; }
+    .dialog-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 24px 26px 17px; border-bottom: 1px solid var(--line); }
+    .dialog-body { padding: 22px 26px 26px; }
+    .form-label { color: #394a42; font-size: 13px; font-weight: 700; }
+    .form-control { min-height: 44px; border-color: #dce2dc; border-radius: 7px; color: var(--ink); }
+    .form-control:focus { border-color: #79a38c; box-shadow: 0 0 0 3px rgba(36,107,82,.12); }
+    .login-screen { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(390px, .82fr); background: #f4f5ef; }
+    .login-art { position: relative; display: flex; flex-direction: column; justify-content: space-between; min-height: 100vh; overflow: hidden; padding: 42px clamp(30px, 6vw, 84px); background: var(--green-deep); color: white; }
+    .login-art::after { position: absolute; right: -120px; bottom: -230px; width: 560px; height: 560px; border: 1px solid rgba(255,255,255,.13); border-radius: 50%; box-shadow: 0 0 0 54px rgba(255,255,255,.035), 0 0 0 108px rgba(255,255,255,.025); content: ""; }
+    .login-art-content { position: relative; z-index: 1; max-width: 500px; margin: auto 0; padding: 60px 0; }
+    .login-art h1 { margin: 20px 0; font-family: Georgia, "Times New Roman", serif; font-size: 64px; font-weight: 500; line-height: 1.04; letter-spacing: 0; }
+    .login-art p { max-width: 390px; color: #ccdbd1; font-size: 16px; line-height: 1.7; }
+    .art-note { position: relative; z-index: 1; color: #c4d2c9; font-size: 12px; }
+    .login-form-side { display: grid; place-items: center; padding: 36px; }
+    .login-card { width: min(100%, 390px); }
+    .login-card h2 { margin: 0 0 7px; font-family: Georgia, "Times New Roman", serif; font-size: 34px; font-weight: 500; letter-spacing: 0; }
+    .login-card .form-control { min-height: 48px; }
+    .login-footer { margin-top: 24px; color: var(--muted); font-size: 12px; text-align: center; }
+    .alert-inline { padding: 11px 13px; border: 1px solid #f0d0c7; border-radius: 7px; background: var(--coral-pale); color: #9e4938; font-size: 13px; }
+    .toast-note { position: fixed; z-index: 1100; right: 22px; bottom: 22px; max-width: min(400px, calc(100vw - 44px)); padding: 13px 16px; border: 1px solid #c9dfd0; border-radius: 8px; background: white; box-shadow: 0 8px 28px rgba(24,48,37,.12); color: var(--green-deep); font-size: 14px; }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 760px) {
+      .login-screen { grid-template-columns: 1fr; }
+      .login-art { min-height: 0; padding: 24px 26px; }
+      .login-art-content { padding: 48px 0 28px; }
+      .login-art h1 { max-width: 480px; font-size: 44px; }
+      .login-art p { margin-bottom: 0; font-size: 14px; }
+      .art-note { display: none; }
+      .login-form-side { padding: 42px 26px 56px; }
+      .workspace { width: min(100% - 28px, 1040px); padding-top: 34px; }
+      .page-title { font-size: 34px; }
+      .task-row { grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; padding: 13px 14px; }
+      .due-date { grid-column: 2; margin-top: -5px; }
+      .row-actions { grid-column: 3; grid-row: 1 / span 2; }
+      .list-heading { padding: 0 14px; }
+    }
+    @media (max-width: 430px) {
+      .topbar { height: 64px; }
+      .page-title { font-size: 32px; }
+      .filter-btn { flex: 1; padding: 9px 8px; }
+      .filter-bar { width: 100%; }
+      .page-actions { width: 100%; }
+      .page-actions .primary-btn { width: 100%; }
+      .task-dialog { border-radius: 10px; }
+      .dialog-head, .dialog-body { padding-right: 19px; padding-left: 19px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+  </style>
+</head>
+<body>
+  <main x-data="taskApp()" x-init="init()" x-cloak>
+    <section class="login-screen" x-show="!token">
+      <div class="login-art">
+        <div class="d-flex align-items-center gap-2">
+          <span class="brand-mark" style="background:#ffffff;color:#194d3c"><i class="bi bi-check2-square"></i></span>
+          <span class="brand-name">Ballast Tasks</span>
+        </div>
+        <div class="login-art-content">
+          <span class="eyebrow" style="color:#a7cfb6">A CLEARER WAY TO WORK</span>
+          <h1>Make room for what matters.</h1>
+          <p>Keep your next steps in view, your priorities in order, and your day moving forward.</p>
+        </div>
+        <div class="art-note">Simple planning. Steady progress.</div>
+      </div>
+      <div class="login-form-side">
+        <form class="login-card" @submit.prevent="login()">
+          <span class="eyebrow">YOUR WORKSPACE</span>
+          <h2 class="mt-2">Welcome back</h2>
+          <p class="subtle mb-4">Sign in to pick up where you left off.</p>
+          <div class="alert-inline mb-3" x-show="error" x-text="error" role="alert"></div>
+          <div class="mb-3">
+            <label for="login-email" class="form-label">Email address</label>
+            <input id="login-email" class="form-control" type="email" x-model.trim="email" autocomplete="username" required placeholder="you@example.com">
+          </div>
+          <div class="mb-4">
+            <label for="login-password" class="form-label">Password</label>
+            <input id="login-password" class="form-control" type="password" x-model="password" autocomplete="current-password" required placeholder="Enter your password">
+          </div>
+          <button class="btn primary-btn w-100 py-3" type="submit" :disabled="busy">
+            <span x-show="!busy">Sign in <i class="bi bi-arrow-right ms-1"></i></span>
+            <span x-show="busy"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Signing in</span>
+          </button>
+          <div class="login-footer">Your tasks are private to your account.</div>
+        </form>
+      </div>
+    </section>
+
+    <section class="app-shell" x-show="token">
+      <header class="topbar">
+        <div class="container-fluid h-100 px-3 px-md-4 d-flex align-items-center justify-content-between">
+          <div class="d-flex align-items-center gap-2">
+            <span class="brand-mark"><i class="bi bi-check2-square"></i></span>
+            <span class="brand-name">Ballast <span class="fw-normal subtle">/ Tasks</span></span>
+          </div>
+          <div class="d-flex align-items-center gap-3">
+            <span class="small subtle d-none d-sm-inline" x-text="email"></span>
+            <span class="avatar" aria-hidden="true" x-text="email ? email.charAt(0).toUpperCase() : 'U'"></span>
+            <button type="button" class="btn btn-sm btn-outline-secondary border-0" @click="logout()" title="Sign out"><i class="bi bi-box-arrow-right me-1"></i><span class="d-none d-sm-inline">Sign out</span></button>
+          </div>
+        </div>
+      </header>
+
+      <div class="workspace">
+        <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-4">
+          <div>
+            <div class="eyebrow">YOUR PERSONAL BOARD</div>
+            <h1 class="page-title">My tasks</h1>
+            <p class="subtle mb-0 mt-2" x-text="listSummary"></p>
+          </div>
+          <div class="page-actions">
+            <button type="button" class="btn primary-btn" @click="openCreate()"><i class="bi bi-plus-lg me-2"></i>New task</button>
+          </div>
+          <div class="filter-bar" role="group" aria-label="Filter tasks">
+            <button class="filter-btn" :class="{ active: filter === 'all' }" @click="setFilter('all')">All tasks</button>
+            <button class="filter-btn" :class="{ active: filter === 'open' }" @click="setFilter('open')">To do</button>
+            <button class="filter-btn" :class="{ active: filter === 'completed' }" @click="setFilter('completed')">Completed</button>
+          </div>
+        </div>
+
+        <div class="alert-inline mb-3" x-show="error" x-text="error" role="alert"></div>
+        <section class="list-panel" aria-label="Your tasks">
+          <div class="list-heading"><span>Task</span><span x-text="loading ? 'Loading…' : `${tasks.length} shown`"></span></div>
+          <template x-if="loading">
+            <div class="empty-state"><div class="spinner-border" style="color:var(--green)" role="status"><span class="visually-hidden">Loading tasks</span></div><p class="subtle mt-3 mb-0">Getting your tasks…</p></div>
+          </template>
+          <template x-if="!loading && tasks.length === 0">
+            <div class="empty-state">
+              <div class="empty-icon"><i class="bi" :class="filter === 'completed' ? 'bi-check2-all' : 'bi-inbox'"></i></div>
+              <h2 class="h5 mb-2" x-text="filter === 'completed' ? 'Nothing completed yet' : 'A little breathing room' "></h2>
+              <p class="subtle mb-3" x-text="filter === 'completed' ? 'Completed tasks will collect here.' : 'Add a task to give your next step a place to land.'"></p>
+              <button x-show="filter !== 'completed'" type="button" class="btn btn-sm primary-btn" @click="openCreate()">Create a task</button>
+            </div>
+          </template>
+          <template x-for="task in tasks" :key="task.id">
+            <article class="task-row" :class="{ 'is-complete': task.completed }">
+              <input class="task-check" type="checkbox" :checked="task.completed" @change="toggleTask(task)" :aria-label="task.completed ? 'Mark task as incomplete' : 'Mark task as complete'">
+              <div class="min-w-0">
+                <div class="task-name" x-text="task.name"></div>
+                <div class="task-meta" x-text="task.completed ? 'Completed' : 'In progress'"></div>
+              </div>
+              <div class="due-date" :class="{ overdue: isOverdue(task) && !task.completed }">
+                <i class="bi bi-calendar3 me-1"></i><span x-text="formatDate(task.due_date)"></span>
+              </div>
+              <div class="row-actions">
+                <button type="button" class="icon-btn" @click="openEdit(task)" :aria-label="`Edit ${task.name}`" title="Edit"><i class="bi bi-pencil"></i></button>
+                <button type="button" class="icon-btn delete" @click="deleteTask(task)" :aria-label="`Delete ${task.name}`" title="Delete"><i class="bi bi-trash3"></i></button>
+              </div>
+            </article>
+          </template>
+          <div class="pager" x-show="!loading && total > 0">
+            <span x-text="`Showing ${skip + 1}–${Math.min(skip + limit, total)} of ${total}`"></span>
+            <div class="d-flex gap-2">
+              <button class="pager-btn" type="button" @click="changePage(-1)" :disabled="skip === 0" aria-label="Previous page"><i class="bi bi-chevron-left"></i></button>
+              <button class="pager-btn" type="button" @click="changePage(1)" :disabled="skip + limit >= total" aria-label="Next page"><i class="bi bi-chevron-right"></i></button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <div class="overlay" x-show="dialogOpen" @keydown.escape.window="closeDialog()" @click.self="closeDialog()" x-transition.opacity>
+      <section class="task-dialog" role="dialog" aria-modal="true" :aria-label="editingTask ? 'Edit task' : 'Create task'">
+        <div class="dialog-head">
+          <div><span class="eyebrow" x-text="editingTask ? 'MAKE A CHANGE' : 'ADD TO YOUR LIST'"></span><h2 class="h4 mb-0 mt-1" x-text="editingTask ? 'Edit task' : 'New task'"></h2></div>
+          <button type="button" class="icon-btn" @click="closeDialog()" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <form class="dialog-body" @submit.prevent="saveTask()">
+          <div class="mb-3">
+            <label class="form-label" for="task-name">Task name</label>
+            <input id="task-name" class="form-control" type="text" maxlength="50" x-model.trim="draft.name" required placeholder="What needs doing?" x-ref="taskNameInput">
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="task-due">Due date and time</label>
+            <input id="task-due" class="form-control" type="datetime-local" x-model="draft.due_date" required>
+          </div>
+          <label class="d-flex align-items-center gap-2 small mb-4" x-show="editingTask"><input class="form-check-input mt-0" type="checkbox" x-model="draft.completed"> Mark as completed</label>
+          <div class="alert-inline mb-3" x-show="dialogError" x-text="dialogError" role="alert"></div>
+          <div class="d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-light border" @click="closeDialog()">Cancel</button>
+            <button type="submit" class="btn primary-btn" :disabled="saving"><span x-text="saving ? 'Saving…' : (editingTask ? 'Save changes' : 'Create task')"></span></button>
+          </div>
+        </form>
+      </section>
+    </div>
+    <div class="toast-note" x-show="notice" x-text="notice" x-transition.opacity x-init="$watch('notice', value => { if (value) setTimeout(() => notice = '', 2600) })" role="status"></div>
+  </main>
+
+  <script>
+    function taskApp() {
+      return {
+        token: localStorage.getItem('ballast_access_token') || '',
+        email: localStorage.getItem('ballast_email') || '',
+        password: '',
+        tasks: [],
+        total: 0,
+        skip: 0,
+        limit: 10,
+        filter: 'all',
+        loading: false,
+        busy: false,
+        saving: false,
+        error: '',
+        dialogError: '',
+        notice: '',
+        dialogOpen: false,
+        editingTask: null,
+        draft: { name: '', due_date: '', completed: false },
+        get listSummary() {
+          if (this.loading) return 'Loading your task list';
+          if (this.total === 0) return 'A clear view of what’s next';
+          return `${this.total} ${this.total === 1 ? 'task' : 'tasks'} ${this.filter === 'all' ? 'in your list' : this.filter === 'open' ? 'to do' : 'completed'}`;
+        },
+        init() {
+          if (this.token) this.loadTasks();
+        },
+        async api(path, options = {}) {
+          const headers = new Headers(options.headers || {});
+          if (this.token) headers.set('Authorization', `Bearer ${this.token}`);
+          if (options.body && !(options.body instanceof FormData) && !(options.body instanceof URLSearchParams)) {
+            headers.set('Content-Type', 'application/json');
+          }
+          const response = await fetch(path, { ...options, headers });
+          if (response.status === 401 && this.token) {
+            this.clearSession();
+            this.error = 'Your session expired. Please sign in again.';
+          }
+          if (!response.ok) {
+            let message = `Request failed (${response.status})`;
+            try {
+              const body = await response.json();
+              if (typeof body.detail === 'string') message = body.detail;
+              else if (Array.isArray(body.detail)) message = body.detail.map(item => item.msg).join(', ');
+            } catch (_) { /* Keep the status fallback. */ }
+            throw new Error(message);
+          }
+          if (response.status === 204) return null;
+          return response.json();
+        },
+        async login() {
+          this.busy = true;
+          this.error = '';
+          try {
+            const body = new URLSearchParams({ username: this.email, password: this.password });
+            const result = await this.api('/login', { method: 'POST', body });
+            this.token = result.access_token;
+            localStorage.setItem('ballast_access_token', this.token);
+            localStorage.setItem('ballast_email', this.email);
+            this.password = '';
+            await this.loadTasks();
+          } catch (error) {
+            this.error = error.message === 'Invalid email or password' ? 'That email and password combination was not recognized.' : error.message;
+          } finally {
+            this.busy = false;
+          }
+        },
+        clearSession() {
+          this.token = '';
+          localStorage.removeItem('ballast_access_token');
+          localStorage.removeItem('ballast_email');
+          this.tasks = [];
+          this.total = 0;
+        },
+        logout() {
+          this.clearSession();
+          this.error = '';
+          this.email = '';
+          this.notice = '';
+        },
+        async loadTasks() {
+          this.loading = true;
+          this.error = '';
+          const params = new URLSearchParams({ skip: String(this.skip), limit: String(this.limit) });
+          if (this.filter === 'open') params.set('completed', 'false');
+          if (this.filter === 'completed') params.set('completed', 'true');
+          try {
+            const result = await this.api(`/tasks?${params}`);
+            this.tasks = result.items;
+            this.total = result.total;
+          } catch (error) {
+            if (this.token) this.error = error.message;
+          } finally {
+            this.loading = false;
+          }
+        },
+        setFilter(filter) {
+          this.filter = filter;
+          this.skip = 0;
+          this.loadTasks();
+        },
+        changePage(direction) {
+          this.skip = Math.max(0, this.skip + direction * this.limit);
+          this.loadTasks();
+        },
+        localDateTime(date = new Date(Date.now() + 86400000)) {
+          const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+          return local.toISOString().slice(0, 16);
+        },
+        openCreate() {
+          this.editingTask = null;
+          this.dialogError = '';
+          this.draft = { name: '', due_date: this.localDateTime(), completed: false };
+          this.dialogOpen = true;
+          this.$nextTick(() => this.$refs.taskNameInput?.focus());
+        },
+        openEdit(task) {
+          this.editingTask = task;
+          this.dialogError = '';
+          this.draft = {
+            name: task.name,
+            due_date: this.localDateTime(new Date(task.due_date)),
+            completed: task.completed,
+          };
+          this.dialogOpen = true;
+          this.$nextTick(() => this.$refs.taskNameInput?.focus());
+        },
+        closeDialog() {
+          this.dialogOpen = false;
+          this.dialogError = '';
+        },
+        async saveTask() {
+          this.saving = true;
+          this.dialogError = '';
+          const payload = {
+            name: this.draft.name,
+            due_date: this.draft.due_date,
+            ...(this.editingTask ? { completed: this.draft.completed } : {}),
+          };
+          try {
+            if (this.editingTask) {
+              await this.api(`/tasks/${this.editingTask.id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+              this.notice = 'Task updated';
+            } else {
+              await this.api('/tasks', { method: 'POST', body: JSON.stringify(payload) });
+              this.notice = 'Task created';
+            }
+            this.closeDialog();
+            await this.loadTasks();
+          } catch (error) {
+            this.dialogError = error.message;
+          } finally {
+            this.saving = false;
+          }
+        },
+        async toggleTask(task) {
+          try {
+            await this.api(`/tasks/${task.id}`, {
+              method: 'PATCH',
+              body: JSON.stringify({ completed: !task.completed }),
+            });
+            this.notice = task.completed ? 'Task reopened' : 'Task completed';
+            await this.loadTasks();
+          } catch (error) {
+            this.error = error.message;
+          }
+        },
+        async deleteTask(task) {
+          if (!window.confirm(`Delete “${task.name}”? This can’t be undone.`)) return;
+          try {
+            await this.api(`/tasks/${task.id}`, { method: 'DELETE' });
+            if (this.tasks.length === 1 && this.skip > 0) this.skip = Math.max(0, this.skip - this.limit);
+            this.notice = 'Task deleted';
+            await this.loadTasks();
+          } catch (error) {
+            this.error = error.message;
+          }
+        },
+        formatDate(value) {
+          return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+        },
+        isOverdue(task) {
+          return new Date(task.due_date).getTime() < Date.now();
+        },
+      };
+    }
+  </script>
+</body>
+</html>

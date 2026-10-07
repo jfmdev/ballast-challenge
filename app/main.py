@@ -1,10 +1,12 @@
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Annotated
 
 from argon2 import PasswordHasher
 from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -147,3 +149,10 @@ def delete_task(
     db.delete(task)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+app.mount(
+    "/",
+    StaticFiles(directory=Path(__file__).parent / "public", html=True),
+    name="public",
+)
