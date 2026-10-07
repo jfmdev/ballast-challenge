@@ -12,14 +12,15 @@ To run this application, you'll need the following:
 After obtaining these, create a `.env` file inside the `/app` directory with the following content:
 
 ```env
-REDIS_HOST=redis
+REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_PASSWORD=redis_password
-POSTGRES_HOST=postgres
+POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 POSTGRES_USER=postgres_user
 POSTGRES_PASSWORD=postgres_password
 POSTGRES_DB=ballast
+JWT_SECRET_KEY=replace-with-a-long-random-secret
 ```
 
 Make sure the both Redis and Postgres instances are accessible from your environment.
@@ -50,6 +51,24 @@ uvicorn main:app --reload
 ```
 
 The app will be available at http://localhost:8000
+
+## API
+
+### Login
+
+`POST /login` accepts form-encoded `username` (the user's email) and `password`. It returns an access token; send it as `Authorization: Bearer <token>` to access task endpoints. The seeded development account is `john@doe.com` with password `abc123`.
+
+### Tasks
+
+All task routes require a bearer token and operate only on the authenticated user's tasks.
+
+* `POST /tasks` creates a task with `name` and `due_date`; `completed` defaults to `false`.
+* `GET /tasks` lists tasks, sorted by due date ascending. Use `skip` and `limit` for pagination (`limit` is capped at 100), and optionally set `completed=true` or `completed=false` to filter.
+* `GET /tasks/{task_id}` retrieves one task.
+* `PATCH /tasks/{task_id}` updates any of `name`, `due_date`, or `completed`.
+* `DELETE /tasks/{task_id}` deletes a task.
+
+JWT access tokens expire after 30 minutes. Set `JWT_SECRET_KEY` to a strong, private value outside local development.
 
 ### Using Docker
 
