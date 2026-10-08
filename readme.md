@@ -131,6 +131,70 @@ docker run -p 8000:8000 ballast-app-main
 
 The app will be accessible at http://localhost:8000
 
+## Design and implementation
+
+The project was built incrementally with GitHub Copilot, one reviewable commit per step (see `git log`):
+
+1. **Bare-bones FastAPI backend** and a **Docker Compose** file with the app, Redis and Postgres, so the whole stack ran from day one.
+2. **Schema and endpoint drafts:** `users` and `tasks` tables (SQLAlchemy 2.0), JWT login and task CRUD.
+3. **Frontend:** a static page in `app/public`, served by FastAPI and consuming the same API.
+4. **Swagger metadata:** tags, summaries, documented error responses and field descriptions.
+5. **Rate limiting** with Redis.
+6. **Background job** with Celery + Redis.
+7. **Unit tests** with pytest.
+
+### Architecture
+
+| File | Responsibility |
+| --- | --- |
+| `app/main.py` | FastAPI app, routes, startup (table creation and demo user seeding) |
+| `app/schemas.py` | Pydantic request/response models and validation |
+| `app/models.py` | SQLAlchemy models (`User`, `Task`) |
+| `app/database.py` | Engine, session factory and the `get_db` dependency |
+| `app/security.py` | Argon2 password verification, JWT creation, `get_current_user` |
+| `app/ratelimit.py` | Redis rate-limit dependencies |
+| `app/worker.py` | Celery app, Beat schedule and background tasks |
+
+Routes depend on abstractions injected through FastAPI's dependency system (DB session, current user, rate limiter), which keeps them thin and lets tests swap infrastructure. This is a deliberately small codebase, so it is layered by module rather than a full Clean Architecture split (no separate service/repository layers).
+
+### Key decisions
+
+* **FastAPI + Postgres:** type-driven validation, automatic OpenAPI docs, and a production-grade database. Tests use in-memory SQLite.
+* **Authentication:** OAuth2 password flow, with the email as `username` so Swagger's *Authorize* button works. JWTs are HS256 and expire after 30 minutes; passwords are hashed with Argon2. A malformed stored hash is treated as a failed login rather than a server error.
+* **Ownership:** every task query filters by the authenticated user, and another user's task returns `404` instead of `403` so its existence is not leaked.
+* **Partial updates:** `PATCH` uses `exclude_unset`, and rejects empty bodies or explicit `null` values (the columns are non-nullable).
+* **Pagination:** `skip`/`limit` (`limit` capped at 100) with a response envelope `{items, total, skip, limit}`, ordered by `due_date, id` so pages are stable.
+* **Rate limiting:** fixed-window counter in Redis (`INCR` + `EXPIRE NX` in one pipeline, so it is atomic), keyed by client IP. Global limit of 100 requests/min and a stricter 5/min on `/login` against brute force. It returns `429` with `Retry-After`, and fails open (with a warning) if Redis is down. Limits are configurable with `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_LOGIN_REQUESTS` and `RATE_LIMIT_WINDOW_SECONDS`. Behind a reverse proxy, run uvicorn with `--proxy-headers`.
+* **Background processing:** the `worker` Compose service runs Celery with Beat. `tasks.notify_overdue_tasks` runs every 60 seconds, finds tasks with `due_date < now` and `completed = false`, and logs a warning for each one (`docker compose logs -f worker`). Due dates are assumed to be UTC.
+* **Secrets:** read from the environment; `JWT_SECRET_KEY` has a development-only default in Compose only.
+
+### Testing
+
+Tests live in `app/tests` and cover login, authentication failures, task CRUD, validation, pagination and filtering, ownership isolation, rate limiting (including Redis outage) and the Celery task. The database is replaced with in-memory SQLite and Redis with a fake, so no services are needed.
+
+```bash
+cd app
+pip install -r requirements-dev.txt
+python -m pytest   # fails if coverage drops below 80%
+```
+
+### Known limitations
+
+* Tasks can only be filtered by status (`completed`); filtering by due date is not implemented yet.
+* Tasks belong to their creator; assigning a task to a different user is not implemented.
+* The overdue job logs repeatedly for the same task on every run and does not track what was already notified.
+* The frontend is a single static page rather than a React/Vue application.
+* There is no migration tool (tables are created at startup) and no `pyproject.toml` or pre-commit configuration.
+
+### Use of GenAI
+
+Copilot generated each step from a short, focused prompt (for example "Implement a Rate Limit protection, to prevent abuses of the API, using Redis"). Its output was checked by:
+
+* **Reading and editing:** reviewing every diff and keeping changes small. For example, the first rate-limit and Swagger drafts were adjusted to match existing helpers and conventions.
+* **Tests as validation:** the generated tests found a real bug. `argon2` raises `InvalidHashError`, which is not a `VerificationError`, so a malformed hash would have caused a `500` on login. It was fixed in `security.py`.
+* **Edge cases:** ownership, empty or null `PATCH` bodies, token expiry, unknown users, pagination bounds and Redis outages are all covered by tests.
+* **Idiomatic quality:** SQLAlchemy 2.0 `select()` style, `Annotated` dependencies, Pydantic v2 models, and an atomic Redis pipeline instead of separate get/set calls.
+
 ## License
 
 This application is free software; you can redistribute it and/or modify it under the terms of the Mozilla Public License v2.0. You should have received a copy of the MPL 2.0 along with this library, otherwise you can obtain one at http://mozilla.org/MPL/2.0/.
