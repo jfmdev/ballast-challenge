@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from database import Base, SessionLocal, engine, get_db
 from models import Task, User
 from schemas import TaskCreate, TaskPage, TaskRead, TaskUpdate, Token
+from ratelimit import login_rate_limit, rate_limit
 from security import create_access_token, get_current_user, verify_password
 
 password_hasher = PasswordHasher()
@@ -42,6 +43,7 @@ app = FastAPI(
     description="REST API to manage personal tasks. Authenticate via `/login` and use the bearer token.",
     version="1.0.0",
     lifespan=lifespan,
+    dependencies=[Depends(rate_limit)],
     openapi_tags=[
         {"name": "system", "description": "Service status."},
         {"name": "auth", "description": "Authentication."},
@@ -49,7 +51,10 @@ app = FastAPI(
     ],
 )
 
-UNAUTHORIZED = {status.HTTP_401_UNAUTHORIZED: {"description": "Missing, invalid or expired token"}}
+UNAUTHORIZED = {
+    status.HTTP_401_UNAUTHORIZED: {"description": "Missing, invalid or expired token"},
+    status.HTTP_429_TOO_MANY_REQUESTS: {"description": "Rate limit exceeded"},
+}
 NOT_FOUND = {status.HTTP_404_NOT_FOUND: {"description": "Task not found"}}
 
 
@@ -63,6 +68,7 @@ def health():
     response_model=Token,
     tags=["auth"],
     summary="Obtain an access token",
+    dependencies=[Depends(login_rate_limit)],
     description="Form login where `username` is the user's email. Returns a JWT bearer token.",
     responses={status.HTTP_401_UNAUTHORIZED: {"description": "Invalid email or password"}},
 )
