@@ -37,15 +37,35 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     yield
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    title="Task Manager API",
+    description="REST API to manage personal tasks. Authenticate via `/login` and use the bearer token.",
+    version="1.0.0",
+    lifespan=lifespan,
+    openapi_tags=[
+        {"name": "system", "description": "Service status."},
+        {"name": "auth", "description": "Authentication."},
+        {"name": "tasks", "description": "CRUD operations on the authenticated user's tasks."},
+    ],
+)
+
+UNAUTHORIZED = {status.HTTP_401_UNAUTHORIZED: {"description": "Missing, invalid or expired token"}}
+NOT_FOUND = {status.HTTP_404_NOT_FOUND: {"description": "Task not found"}}
 
 
-@app.get("/health")
+@app.get("/health", tags=["system"], summary="Health check")
 def health():
     return {"status": "ok"}
 
 
-@app.post("/login", response_model=Token)
+@app.post(
+    "/login",
+    response_model=Token,
+    tags=["auth"],
+    summary="Obtain an access token",
+    description="Form login where `username` is the user's email. Returns a JWT bearer token.",
+    responses={status.HTTP_401_UNAUTHORIZED: {"description": "Invalid email or password"}},
+)
 def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Annotated[Session, Depends(get_db)],
@@ -72,7 +92,14 @@ def get_owned_task(db: Session, task_id: int, user_id: int) -> Task:
     return task
 
 
-@app.post("/tasks", response_model=TaskRead, status_code=status.HTTP_201_CREATED)
+@app.post(
+    "/tasks",
+    response_model=TaskRead,
+    status_code=status.HTTP_201_CREATED,
+    tags=["tasks"],
+    summary="Create a task",
+    responses=UNAUTHORIZED,
+)
 def create_task(
     task_data: TaskCreate,
     db: Annotated[Session, Depends(get_db)],
@@ -85,7 +112,14 @@ def create_task(
     return task
 
 
-@app.get("/tasks", response_model=TaskPage)
+@app.get(
+    "/tasks",
+    response_model=TaskPage,
+    tags=["tasks"],
+    summary="List tasks",
+    description="Paginated list of the user's tasks ordered by due date, optionally filtered by completion.",
+    responses=UNAUTHORIZED,
+)
 def list_tasks(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -108,7 +142,13 @@ def list_tasks(
     return TaskPage(items=tasks, total=total, skip=skip, limit=limit)
 
 
-@app.get("/tasks/{task_id}", response_model=TaskRead)
+@app.get(
+    "/tasks/{task_id}",
+    response_model=TaskRead,
+    tags=["tasks"],
+    summary="Get a task",
+    responses={**UNAUTHORIZED, **NOT_FOUND},
+)
 def read_task(
     task_id: int,
     db: Annotated[Session, Depends(get_db)],
@@ -117,7 +157,18 @@ def read_task(
     return get_owned_task(db, task_id, current_user.id)
 
 
-@app.patch("/tasks/{task_id}", response_model=TaskRead)
+@app.patch(
+    "/tasks/{task_id}",
+    response_model=TaskRead,
+    tags=["tasks"],
+    summary="Update a task",
+    description="Partially update a task. At least one non-null field is required.",
+    responses={
+        **UNAUTHORIZED,
+        **NOT_FOUND,
+        status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid or empty update"},
+    },
+)
 def update_task(
     task_id: int,
     task_data: TaskUpdate,
@@ -139,7 +190,13 @@ def update_task(
     return task
 
 
-@app.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete(
+    "/tasks/{task_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    tags=["tasks"],
+    summary="Delete a task",
+    responses={**UNAUTHORIZED, **NOT_FOUND},
+)
 def delete_task(
     task_id: int,
     db: Annotated[Session, Depends(get_db)],
