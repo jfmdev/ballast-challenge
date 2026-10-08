@@ -46,5 +46,25 @@ services:
       postgres:
         condition: service_healthy
 
+  worker:
+    build: ./app
+    command: ["celery", "-A", "worker.celery_app", "worker", "--beat", "--loglevel=INFO"]
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: redis_password
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: postgres_user
+      POSTGRES_PASSWORD: postgres_password
+      POSTGRES_DB: ballast
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      app:
+        condition: service_started
+
 volumes:
   postgres_data:
